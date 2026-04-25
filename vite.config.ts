@@ -372,10 +372,20 @@ export default defineConfig(({ mode }: ConfigEnv) => {
 						}
 						return 'assets/[name]-[hash][extname]';
 					},
-					// Manualchunks configuration for better code splitting
-					manualChunks: {
-						vendor: ['preact', 'preact/hooks', 'preact/jsx-runtime', 'preact/compat'],
-						ui: ['./src/app/ErrorBoundary.tsx']
+					// Manualchunks configuration for better code splitting.
+					// Heavy vendor libraries are split into their own chunks so they cache
+					// across routes instead of getting duplicated into route bundles.
+					manualChunks: (id: string) => {
+						if (!id.includes('node_modules')) return undefined;
+						if (id.includes('/preact/') || id.includes('/preact-iso/') || id.includes('/@preact/')) return 'vendor';
+						if (id.includes('/@heroicons/')) return 'icons';
+						if (id.includes('/framer-motion/')) return 'framer';
+						if (id.includes('/react-markdown/') || id.includes('/preact-markdown/') || id.includes('/remark-gfm/') || id.includes('/dompurify/')) return 'markdown';
+						if (id.includes('/i18next') || id.includes('/react-i18next/')) return 'i18n';
+						if (id.includes('/@stripe/')) return 'stripe';
+						if (id.includes('/axios/')) return 'http';
+						if (id.includes('/zod/')) return 'zod';
+						return undefined;
 					}
 				},
 			},

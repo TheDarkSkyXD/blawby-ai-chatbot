@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'preact/hooks';
 import { authClient } from '@/shared/lib/authClient';
+import { dedupeInflight } from '@/shared/lib/requestDedupe';
 
 export interface AuthAccountSummary {
   providerId: string;
@@ -60,7 +61,9 @@ export const useAuthAccounts = (enabled = true) => {
     }
 
     try {
-      const result = await authClient.listAccounts();
+      // settings/account and settings/security both render this hook on entry
+      // and each fired its own list-accounts request (~750ms) — dedupe them.
+      const result = await dedupeInflight('auth:list-accounts', () => authClient.listAccounts());
       if (isMounted && !isMounted()) {
         return;
       }

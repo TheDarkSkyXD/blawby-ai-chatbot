@@ -1,25 +1,28 @@
 import { hydrate, prerender as ssr, Router, Route, useLocation, LocationProvider } from 'preact-iso';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { Suspense } from 'preact/compat';
+import { lazy, Suspense } from 'preact/compat';
 import { I18nextProvider } from 'react-i18next';
 import AuthPage from '@/pages/AuthPage';
-import AcceptInvitationPage from '@/pages/AcceptInvitationPage';
-import OnboardingPage from '@/pages/OnboardingPage';
-import PricingPage from '@/pages/PricingPage';
-import PaymentResultPage from '@/pages/PaymentResultPage';
-import DebugStylesPage from '@/pages/DebugStylesPage';
-import DebugDialogsPage from '@/pages/DebugDialogsPage';
-import DebugChatPage from '@/pages/DebugChatPage';
-import DebugConversationsPage from '@/pages/DebugConversationsPage';
-import DebugMatterPage from '@/pages/DebugMatterPage';
-import { ClientEngagementReviewPage } from '@/features/engagements/pages/ClientEngagementReviewPage';
+const AcceptInvitationPage = lazy(() => import('@/pages/AcceptInvitationPage'));
+const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'));
+const PricingPage = lazy(() => import('@/pages/PricingPage'));
+const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
+// Debug pages are dev-only. Vite inlines `import.meta.env.DEV` to a literal,
+// so the dynamic import in the `false` branch is dead code and the chunk is
+// dropped from the production bundle.
+const DebugStylesPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugStylesPage')) : null;
+const DebugDialogsPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugDialogsPage')) : null;
+const DebugChatPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugChatPage')) : null;
+const DebugConversationsPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugConversationsPage')) : null;
+const DebugMatterPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugMatterPage')) : null;
+const ClientEngagementReviewPage = lazy(() => import('@/features/engagements/pages/ClientEngagementReviewPage').then(m => ({ default: m.ClientEngagementReviewPage })));
 import { SEOHead } from '@/app/SEOHead';
 import { ToastProvider } from '@/shared/contexts/ToastContext';
 import { SessionProvider, useSessionContext } from '@/shared/contexts/SessionContext';
 import { getSession } from '@/shared/lib/authClient';
-import { MainApp } from '@/app/MainApp';
-import { WidgetApp } from '@/app/WidgetApp';
-import { WidgetPreviewApp } from '@/app/WidgetPreviewApp';
+const MainApp = lazy(() => import('@/app/MainApp').then(m => ({ default: m.MainApp })));
+const WidgetApp = lazy(() => import('@/app/WidgetApp').then(m => ({ default: m.WidgetApp })));
+const WidgetPreviewApp = lazy(() => import('@/app/WidgetPreviewApp').then(m => ({ default: m.WidgetPreviewApp })));
 import { useNavigation } from '@/shared/utils/navigation';
 import { usePracticeConfig } from '@/shared/hooks/usePracticeConfig';
 import { usePracticeManagement } from '@/shared/hooks/usePracticeManagement';
@@ -95,32 +98,32 @@ const resolveAuthenticatedHomePath = ({
 };
 
 const DevDebugStylesRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugStylesPage) return <App404 />;
   return <DebugStylesPage />;
 };
 
 const DevDebugChatRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugChatPage) return <App404 />;
   return <DebugChatPage />;
 };
 
 const DevDebugDialogsRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugDialogsPage) return <App404 />;
   return <DebugDialogsPage />;
 };
 
 const DevDebugDialogPreviewRoute = ({ previewId }: { previewId?: string }) => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugDialogsPage) return <App404 />;
   return <DebugDialogsPage previewId={previewId} />;
 };
 
 const DevDebugConversationsRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugConversationsPage) return <App404 />;
   return <DebugConversationsPage />;
 };
 
 const DevDebugMatterRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugMatterPage) return <App404 />;
   return <DebugMatterPage />;
 };
 

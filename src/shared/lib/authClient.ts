@@ -5,6 +5,7 @@ import { stripeClient } from '@better-auth/stripe/client';
 import type { BackendSessionUser, AuthSessionPayload } from '@/shared/types/user';
 import { safeConvertToDate, validateRequiredFields } from '@/shared/types/user';
 import { getWorkerApiUrl } from '@/config/urls';
+import { dedupeInflight } from '@/shared/lib/requestDedupe';
 
 type BetterAuthRawSessionRecord = Record<string, unknown> & {
   active_organization_id?: string;
@@ -254,8 +255,15 @@ export const useActiveMemberRole = () => {
 };
 
 export const getSession = async (...args: Parameters<AuthClientType['getSession']>): Promise<AuthSessionPayload | null> => {
-  const result = await getAuthClient().getSession(...args);
-  return unwrapSessionData(result);
+  const fetcher = async () => {
+    const result = await getAuthClient().getSession(...args);
+    return unwrapSessionData(result);
+  };
+  // Dedupe only the bare call (no args) — that's the case multiple components
+  // make concurrently on first paint. Calls with options (fetchOptions, etc.)
+  // bypass to avoid sharing AbortSignals or onResponse handlers.
+  if (args.length === 0) return dedupeInflight('auth:get-session', fetcher);
+  return fetcher();
 };
 type UpdateUserArgs = Parameters<AuthClientType['updateUser']>;
 type UpdateUserInput = Partial<BackendSessionUser> & Record<string, unknown>;
