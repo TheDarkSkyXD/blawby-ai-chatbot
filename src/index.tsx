@@ -7,11 +7,14 @@ const AcceptInvitationPage = lazy(() => import('@/pages/AcceptInvitationPage'));
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'));
 const PricingPage = lazy(() => import('@/pages/PricingPage'));
 const PaymentResultPage = lazy(() => import('@/pages/PaymentResultPage'));
-const DebugStylesPage = lazy(() => import('@/pages/DebugStylesPage'));
-const DebugDialogsPage = lazy(() => import('@/pages/DebugDialogsPage'));
-const DebugChatPage = lazy(() => import('@/pages/DebugChatPage'));
-const DebugConversationsPage = lazy(() => import('@/pages/DebugConversationsPage'));
-const DebugMatterPage = lazy(() => import('@/pages/DebugMatterPage'));
+// Debug pages are dev-only. Vite inlines `import.meta.env.DEV` to a literal,
+// so the dynamic import in the `false` branch is dead code and the chunk is
+// dropped from the production bundle.
+const DebugStylesPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugStylesPage')) : null;
+const DebugDialogsPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugDialogsPage')) : null;
+const DebugChatPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugChatPage')) : null;
+const DebugConversationsPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugConversationsPage')) : null;
+const DebugMatterPage = import.meta.env.DEV ? lazy(() => import('@/pages/DebugMatterPage')) : null;
 const ClientEngagementReviewPage = lazy(() => import('@/features/engagements/pages/ClientEngagementReviewPage').then(m => ({ default: m.ClientEngagementReviewPage })));
 import { SEOHead } from '@/app/SEOHead';
 import { ToastProvider } from '@/shared/contexts/ToastContext';
@@ -95,32 +98,32 @@ const resolveAuthenticatedHomePath = ({
 };
 
 const DevDebugStylesRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugStylesPage) return <App404 />;
   return <DebugStylesPage />;
 };
 
 const DevDebugChatRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugChatPage) return <App404 />;
   return <DebugChatPage />;
 };
 
 const DevDebugDialogsRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugDialogsPage) return <App404 />;
   return <DebugDialogsPage />;
 };
 
 const DevDebugDialogPreviewRoute = ({ previewId }: { previewId?: string }) => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugDialogsPage) return <App404 />;
   return <DebugDialogsPage previewId={previewId} />;
 };
 
 const DevDebugConversationsRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugConversationsPage) return <App404 />;
   return <DebugConversationsPage />;
 };
 
 const DevDebugMatterRoute = () => {
-  if (!import.meta.env.DEV) return <App404 />;
+  if (!DebugMatterPage) return <App404 />;
   return <DebugMatterPage />;
 };
 

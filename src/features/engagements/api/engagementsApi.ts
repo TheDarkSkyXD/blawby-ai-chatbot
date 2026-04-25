@@ -54,8 +54,13 @@ export async function listEngagements(
 
   const baseQuery = new URLSearchParams();
   baseQuery.set('limit', String(requestedLimit));
-  if (requestedStatuses.length > 0) {
-    requestedStatuses.forEach((s) => baseQuery.append('status', s));
+  // The matters backend rejects repeated `status` query params (HTTP 400). When
+  // we have a single requested status we can pass it through as a server-side
+  // hint; for multi-status queries we omit the param and rely on the
+  // client-side filter below (`allowedStatuses.has(item.status)`) to narrow
+  // the result.
+  if (requestedStatuses.length === 1) {
+    baseQuery.set('status', requestedStatuses[0]);
   }
 
   const filteredItems: EngagementListItem[] = [];

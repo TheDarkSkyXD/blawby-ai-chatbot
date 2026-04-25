@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { apiClient } from '@/shared/lib/apiClient';
+import { dedupeInflight } from '@/shared/lib/requestDedupe';
 import { urls } from '@/config/urls';
 import {
   assertMajorUnits,
@@ -409,12 +410,22 @@ export const listInvoices = async (
   options: FetchOptions = {}
 ): Promise<Invoice[]> => {
   if (!practiceId) return [];
-  const params = matterId ? { matter_id: matterId } : undefined;
-  const payload = await requestData(
-    apiClient.get(urls.invoices(practiceId), { params, signal: options.signal }),
-    'Failed to load invoices'
-  );
-  return extractInvoicesArray(payload).map(normalizeInvoice);
+  // Several components on the practice dashboard subscribe to the invoice list
+  // independently (cashflow widget, recent activity, the page itself), so
+  // dedupe concurrent calls onto a single in-flight request. We can't share
+  // the AbortSignal across callers, so a request that came in with a signal
+  // bypasses the cache to preserve cancellation semantics.
+  const dedupeKey = `invoices:list:${practiceId}:${matterId ?? ''}`;
+  const fetcher = async (): Promise<Invoice[]> => {
+    const params = matterId ? { matter_id: matterId } : undefined;
+    const payload = await requestData(
+      apiClient.get(urls.invoices(practiceId), { params, signal: options.signal }),
+      'Failed to load invoices'
+    );
+    return extractInvoicesArray(payload).map(normalizeInvoice);
+  };
+  if (options.signal) return fetcher();
+  return dedupeInflight(dedupeKey, fetcher);
 };
 
 export const getInvoice = async (

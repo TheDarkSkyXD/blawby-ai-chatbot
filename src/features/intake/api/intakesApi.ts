@@ -118,24 +118,38 @@ export async function listIntakes(practiceId: string, params: IntakeListParams, 
     throw new Error('practiceId is required');
   }
 
-  const query: Record<string, string | undefined> = {
-    page: String(params.page),
+  const buildQuery = (includeStatus: boolean): Record<string, string | undefined> => {
+    const q: Record<string, string | undefined> = { page: String(params.page) };
+    if (params.limit != null) q.limit = String(params.limit);
+    if (includeStatus) {
+      if (params.triage_status && params.triage_status !== 'all') {
+        q.status = params.triage_status;
+      } else if (params.status && params.status !== 'all') {
+        q.status = params.status;
+      }
+    }
+    return q;
   };
 
-  if (params.limit != null) {
-    query.limit = String(params.limit);
-  }
-
-  if (params.triage_status && params.triage_status !== 'all') {
-    query.status = params.triage_status;
-  } else if (params.status && params.status !== 'all') {
-    query.status = params.status;
-  }
-
-  const response = await fetch(
+  const fetchOnce = (query: Record<string, string | undefined>) => fetch(
     clientIntakes(practiceId, query),
     { credentials: 'include', signal: options.signal }
   );
+
+  let response = await fetchOnce(buildQuery(true));
+
+  // The backend currently returns HTTP 500 for some combinations of
+  // `status=…&limit=…` (notably status=accepted with a large limit). Fall back
+  // to fetching without the status filter and let callers filter in memory so
+  // the conversations workspace doesn't lose its triage badges. Only do this
+  // for 5xx where retrying without the filter is meaningfully different.
+  const hasStatusFilter = Boolean(
+    (params.triage_status && params.triage_status !== 'all') ||
+    (params.status && params.status !== 'all')
+  );
+  if (response.status >= 500 && hasStatusFilter) {
+    response = await fetchOnce(buildQuery(false));
+  }
 
   if (!response.ok) {
     throw new Error('Failed to fetch intakes');

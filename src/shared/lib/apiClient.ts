@@ -9,6 +9,7 @@ import type { Conversation } from '@/shared/types/conversation';
 import type { Address } from '@/shared/types/address';
 import type { PracticeTeamResponse } from '@/shared/types/team';
 import { getWorkerApiUrl, isWidgetTokenEligibleRequestUrl } from '@/config/urls';
+import { dedupeInflight } from '@/shared/lib/requestDedupe';
 import {
   toMajorUnits,
   toMinorUnitsValue,
@@ -29,6 +30,10 @@ const publicPracticeDetailsInFlight = new Map<string, Promise<PublicPracticeDeta
 // independent HTTP requests because the in-flight map was cleared after each request.
 const publicPracticeDetailsCache = new Map<string, PublicPracticeDetails | null>();
 const ABSOLUTE_URL_PATTERN = /^(https?:)?\/\//i;
+// Legacy Blawby hosts that may appear in stored file URLs from prior environments.
+// Rewriting them onto the current backend avoids cross-origin requests to staging/dev
+// when the app is deployed to production (or another env).
+const LEGACY_BLAWBY_FILE_HOST = /^https?:\/\/(ai-staging|staging|local|dev)\.blawby\.com(\/.*)?$/i;
 
 /**
  * Clear the public practice details cache for a specific slug (or all slugs).
@@ -48,6 +53,15 @@ export const normalizePublicFileUrl = (value?: string | null): string | null => 
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
+  // Rewrite legacy /api/files/* URLs on staging/dev hosts to the current backend.
+  // These show up in records created before the env's file URLs were stabilised.
+  const legacyMatch = LEGACY_BLAWBY_FILE_HOST.exec(trimmed);
+  if (legacyMatch) {
+    const path = legacyMatch[2] ?? '/';
+    if (path.startsWith('/api/files/')) {
+      return `${getWorkerApiUrl()}${path}`;
+    }
+  }
   if (ABSOLUTE_URL_PATTERN.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed;
   }
@@ -1310,11 +1324,18 @@ export async function getOnboardingStatus(
   if (!organizationId) {
     throw new Error('organizationId is required');
   }
-  const response = await apiClient.get(
-    `/api/onboarding/organization/${encodeURIComponent(organizationId)}/status`,
-    { signal: config?.signal }
-  );
-  return normalizeOnboardingStatus(response.data);
+  // Multiple panes (Matters, settings/general, settings/payouts) call this
+  // independently. Skip dedup when an AbortSignal is provided so cancellation
+  // semantics aren't shared between unrelated callers.
+  const fetcher = async () => {
+    const response = await apiClient.get(
+      `/api/onboarding/organization/${encodeURIComponent(organizationId)}/status`,
+      { signal: config?.signal }
+    );
+    return normalizeOnboardingStatus(response.data);
+  };
+  if (config?.signal) return fetcher();
+  return dedupeInflight(`onboarding:status:${organizationId}`, fetcher);
 }
 
 export async function getOnboardingStatusPayload(
@@ -1375,11 +1396,15 @@ export async function getPracticeDetails(
   if (!practiceId) {
     throw new Error('practiceId is required');
   }
-  const response = await apiClient.get(
-    `/api/practice/${encodeURIComponent(practiceId)}/details`,
-    { signal: config?.signal }
-  );
-  return normalizePracticeDetailsResponse(response.data);
+  const fetcher = async () => {
+    const response = await apiClient.get(
+      `/api/practice/${encodeURIComponent(practiceId)}/details`,
+      { signal: config?.signal }
+    );
+    return normalizePracticeDetailsResponse(response.data);
+  };
+  if (config?.signal) return fetcher();
+  return dedupeInflight(`practice:details:${practiceId}`, fetcher);
 }
 
 export async function getPracticeDetailsBySlug(
