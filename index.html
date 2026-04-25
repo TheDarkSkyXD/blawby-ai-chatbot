@@ -10,7 +10,8 @@
 	<meta name="color-scheme" content="light dark" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" media="print" onload="this.media='all';this.onload=null" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" />
+	<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" /></noscript>
 
 	<!-- Primary Meta Tags -->
 	<title>Blawby AI - Intelligent Legal Assistant & Chat Interface</title>
@@ -99,10 +100,24 @@
 	}
 	</script>
 
-		<script
-			src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-			defer
-		></script>
+		<script>
+			// Lazy-load OneSignal after first paint to avoid contending with critical resources.
+			// Push permissions only matter post-auth, so a small delay has no UX cost.
+			(function () {
+				if (typeof window === 'undefined') return;
+				var load = function () {
+					var s = document.createElement('script');
+					s.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+					s.defer = true;
+					document.head.appendChild(s);
+				};
+				if ('requestIdleCallback' in window) {
+					window.requestIdleCallback(load, { timeout: 4000 });
+				} else {
+					window.addEventListener('load', function () { setTimeout(load, 1500); });
+				}
+			})();
+		</script>
 		</head>
 
 <body>
