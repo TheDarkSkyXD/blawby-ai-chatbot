@@ -170,6 +170,7 @@ const serveStaticHtmlPlugin = (): Plugin => {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }: ConfigEnv) => {
 	const env = loadEnv(mode, process.cwd(), '');
+	const devHmrHost = env.VITE_DEV_HMR_HOST || 'local.blawby.com';
 	return {
 		envPrefix: ['VITE_'],
 		plugins: [
@@ -341,7 +342,9 @@ export default defineConfig(({ mode }: ConfigEnv) => {
 			host: true,
 			port: 5137,      // Matches your current setup
 			strictPort: true, // Fail if port is busy (tunnel expects this exact port)
-			allowedHosts: ['local.blawby.com'], // Allow the public tunnel domain
+			// Default to local.blawby.com; contributors can point at their own tunnel
+			// via VITE_DEV_HMR_HOST in .env.local (e.g. dev.blawby.com).
+			allowedHosts: Array.from(new Set(['local.blawby.com', devHmrHost])),
 			watch: {
 				ignored: [
 					'**/.tmp/**',
@@ -355,7 +358,7 @@ export default defineConfig(({ mode }: ConfigEnv) => {
 			},
 			hmr: {
 				protocol: 'wss',
-				host: 'local.blawby.com',
+				host: devHmrHost,
 				clientPort: 443
 			},
 			proxy: {
